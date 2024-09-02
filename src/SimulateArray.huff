@@ -15,15 +15,211 @@
  *  NOTICE: The contract should revert when an unrecognized function is called
  */
 
- #define function pushh(uint256 num) payable returns()
- #define function popp() payable returns()
- #define function read(uint256 index) payable returns(uint256)
+
+// cast sig "length()"
+// 0x1f7b6d32
  #define function length() payable returns(uint256)
+
+ // cast sig "pushh(uint256)"
+ // 0x5edfe85d
+ #define function pushh(uint256 num) payable returns()
+ 
+ //  cast sig "popp()"
+ //  0x6a57dbc7
+ // pivot0
+ #define function popp() payable returns() 
+
+ // cast sig "write(uint256,uint256)"
+// 0x9c0e3f7a 
  #define function write(uint256 index, uint256 num) payable returns()
+
+// cast sig "read(uint256)"
+// 0xed2e5a97 
+ #define function read(uint256 index) payable returns(uint256)
 
  #define error OutOfBounds()
  #define error ZeroArray()
 
+
+// https://programtheblockchain.com/posts/2018/03/09/understanding-ethereum-smart-contract-storage/
+
+// function arrLocation(uint256 slot, uint256 index, uint256 elementSize)
+//     public
+//     pure
+//     returns (uint256)
+// {
+//     return uint256(keccak256(slot)) + (index * elementSize / 256);
+// }
+
+
+
+#define macro keccak_slot1() = takes(0) returns(1) {
+    0x01
+    0x00 
+    mstore 
+    0x20
+    0x00
+    sha3 // keccake(01)
+}
+
+#define macro length() = takes(0) returns(1) {
+    0x01
+    sload 
+}
+
+#define macro pushh() = takes(1) returns(0) {
+    0x01 
+    sload  // [num, len]
+    swap1  // [len, num]
+    dup2 // // [len, num, len]
+    keccak_slot1() add 
+    // // [len, num, new_pos]
+    sstore // [len]
+    0x01
+    add // [len+1]
+    0x01 sstore 
+}
+
+#define macro popp() = takes(0) returns(1) {
+    0x01
+    sload 
+    dup1 
+    iszero zero_arr jumpi
+    fn jump
+
+    zero_arr: 
+        __ERROR(ZeroArray)
+        0x00 mstore 
+        0x04 0x00 revert         
+
+    fn:
+        0x01
+        swap1 
+        sub // [len - 1]
+        dup1 
+        keccak_slot1() // [len-1, len-1,slot1]
+        swap1 // [len-1, slot1, len-1]
+        add // [len - 1, target_pos]
+        dup1  // [len - 1, target_pos, target_pos]
+        sload // [len - 1, target_pos, num]
+        swap1 // [len -1, num, target_pos]
+        0x00 
+        swap1 // [len -1, num, 0x00, target_pos]
+        sstore // [len -1, num]
+        swap1 // [num, len - 1]
+        0x01 
+        sstore // [number]
+}
+
+#define macro write() = takes(2) returns(0) {
+    // [index, number]
+    swap1 
+    0x01 sload 
+    dup1 iszero rev jumpi 
+    verify jump
+
+    rev:    
+        __ERROR(OutOfBounds)
+        0x00 mstore 
+        0x04 0x00 revert
+
+    verify:
+        // [number, index, len]
+        dup2 // [number, index, len, index]
+        lt // index < len
+        write jumpi 
+        rev jump 
+
+    write: 
+        // [number, index]
+        keccak_slot1()
+        add // [number, target slot]
+        sstore 
+}
+
+#define macro read() = takes(1) returns(1) {
+    0x01
+    sload  // [pos, size]
+    dup1 // [pos, size, size]
+    iszero rev jumpi 
+
+    verify jump
+
+    rev:    
+        __ERROR(OutOfBounds)
+        0x00 mstore 
+        0x04 0x00 revert
+
+    verify:
+        // [pos, size]
+        dup2      // [pos, size, pos]
+        lt read jumpi  // pos < size
+        rev jump 
+
+    read: 
+        // [pos]
+        keccak_slot1()
+        add // [target_pos]
+        sload // [num]
+}
+
+// forge test -vvv --mc SimulateArrayTest
  #define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload
+    0xe0 shr 
     
- }
+    dup1 __FUNC_SIG(popp) dup1 swap2
+    lt branch_1 jumpi // [call method, sig, sig, callmethod]
+    // [call method, sig]
+    dup2 
+    // [call method, sig, callmethod]
+    eq popp jumpi 
+    branch_2 jump
+
+    branch_1:
+        pop 
+        // [call method]
+        dup1 __FUNC_SIG(length) eq length_fn jumpi
+        __FUNC_SIG(pushh) eq pushh_fn jumpi
+        rev jump
+
+    branch_2:
+        // [call method]
+        dup1 __FUNC_SIG(write) eq write_fn jumpi
+        __FUNC_SIG(read) eq read_fn jumpi
+        rev jump
+
+    length_fn: 
+        length()
+        0x00 mstore 
+        0x20 0x00 return 
+    
+    pushh_fn:
+        0x04
+        calldataload
+        pushh()
+        0x00 0x00 return 
+
+    popp:
+        popp()
+        0x00 
+        mstore 
+        0x20 0x00 return 
+
+    write_fn:
+        0x04
+        calldataload
+        0x24
+        calldataload 
+        write()
+        0x00 0x00 return 
+    
+    read_fn:
+        0x04 calldataload
+        read()
+        0x00 mstore 
+        0x20 0x00 return 
+    
+    rev:
+        0x00 0x00 revert 
+}

@@ -6,7 +6,11 @@
  *  
  *  The task is to write within the `MAIN` macro below, huff code that retrieves the ether balance of the address that sent the transaction, also known as msg.sender in solidity. 
  */
-
+ 
+// forge test -vvv --mc MyEtherBalanceTest
 #define macro MAIN() = takes(0) returns(0) {
-   
+   caller
+   balance
+   0x00 mstore 
+   0x20 0x00 return 
 }

@@ -10,7 +10,34 @@
 
  #define function sendEther(address) payable returns()
 
+// forge test -vvv --mc SendEtherTest
+#define macro sendEther() = takes(1) returns (0) {
+    // [address, 0x00, 0x00, 0x00, 0x00]
+    0x00 0x00 0x00 0x00 swap4 
+    // [0x00, 0x00, 0x00, 0x00, address]
+    callvalue 
+    // [0x00, 0x00, 0x00, 0x00, address, callvalue]
+    swap1 
+    // [0x00, 0x00, 0x00, 0x00, callvalue, addr, gas]
+    gas 
+    call 
+}
 
  #define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload
+    0xe0 shr 
+    __FUNC_SIG(sendEther)
+    eq send_fn jumpi
     
+    rev jump 
+
+    send_fn: 
+        0x04
+        calldataload
+        sendEther()
+
+        0x00 0x00 return 
+
+    rev:
+        0x00 0x00 revert 
  }

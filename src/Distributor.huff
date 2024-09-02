@@ -10,9 +10,98 @@
  *  NOTICE: The contract should revert when an unrecognized function is called
  */
 
+
+// method
+// 0x00 - 0x20 location:  of the start of addresses
+// 0x20 - 0x40 size: size of addresses
+// 0x40... address1, address2, address3
+
  #define function distribute(address[]) payable returns()
 
 
+ // [index, addr]
+ #define macro transfer() = takes(2) returns(1) {
+    0x00 0x00 0x00 0x00 
+    swap4 
+    0x20 
+    mload
+    swap1
+    gas
+    call
+    pop
+    0x01 
+    add
+ }
+
+// forge test -vvv --mc DistributeTest       
  #define macro MAIN() = takes(0) returns(0) {
-   
+    0x00 calldataload
+    0xe0 shr 
+    __FUNC_SIG(distribute)
+    eq verify jumpi 
+
+    rev jump 
+
+    verify:
+        0x04 calldataload  // [0x20]
+        dup1 // [0x20, 0x20]
+        0x00 // [0x20, 0x20, 0x00]
+        eq rev jumpi
+
+        0x04 // [0x20, 0x04]
+        add 
+        0x00 // [position + 0x04, 0x00] 
+        swap1  // [0x00, position + 0x04]
+        dup1 // [0x00, 0x24, 0x24]
+        0x20 // [0x00, 0x24, 0x24, 0x20]
+        add  // [0x00, 0x24, 0x44]
+        0x40 //// [0x00, 0x24, 0x44, 0x40]
+        mstore // [0x00, 0x24] mem: ["0", "0", 0x44]
+        calldataload // ["0x00", "size"]
+        dup1 // ["0x00", "size", size]
+        0x00  
+        eq rev jumpi 
+
+        // ["0x00", "size"]
+        dup1 // ["0x00", "size", size]
+        calldatasize  // ["0x00", "size", size, calldatasize]
+        swap1 // ["0x00", "size", calldatasize, size]
+        0x20 // ["0x00", "size", calldatasize, size, 0x20]
+        mul  // ["0x00", "size", calldatasize, size * 0x20]
+        0x44 // ["0x00", "size", calldatasize, size * 0x20, 0x44]
+        add  //   ["0x00", "size", calldatasize, size * 0x20+0x44]
+        eq distribute jumpi 
+        rev jump
+
+    distribute:
+        // ["0x00", "size"]
+        dup1 // ["0x00", "size", size]
+        0x00 // ["0x00", "size", size, 0x00]
+        mstore // ["0x00", "size"], mem: ["size", "0", 0x44]
+        callvalue // ["0x00", "size", callvalue], mem: ["size of address"]
+        div // ["0x00", callvalue / size], mem: ["size of address"]
+        0x20 // ["0x00", callvalue / size, 0x20]
+        mstore // ["0x00"], mem: ["size", "callvalue / size", 0x44]
+        transfer jump 
+
+    transfer:
+        // ["0x00"], mem: ["size", "callvalue / size", 0x44]
+        dup1 // ["0x00", 0x00] mem: ["size", "callvalue / size", 0x44]
+        0x20 // ["0x00", 0x00, 0x20]
+        mul // ["0x00", 0x00]
+        0x40 // ["0x00", 0x00, 0x40]
+        mload // ["0x00", 0x00, 0x44]
+        add // ["0x00", 0x44]
+        calldataload // [0x00 addr1]
+        transfer() // [0x01]
+        dup1 // [0x01 0x01]
+        0x00 // [0x01 0x01 0x00]
+        mload 
+        swap1 // [0x01 size 0x01]
+        lt transfer jumpi
+
+        0x00 0x00 return 
+
+    rev:
+        0x00 0x00 revert 
  }

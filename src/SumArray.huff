@@ -10,7 +10,65 @@
 
 #define function sumArray(uint256[]) payable returns(uint256)
 
-
+// forge test -vvv --mc SumArrayTest
 #define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload
+    0xe0 shr 
+    __FUNC_SIG(sumArray)
+    eq sum_fn jumpi
+    
+    rev jump 
 
+    sum_fn:
+        calldatasize 
+        iszero return_fn jumpi 
+        0x04 calldataload  // [ptr]
+        0x04 
+        add  
+        dup1 
+        0x20 // [ptr+04, ptr+04, 0x20]
+        add // [ptr+04, ptr+0x24]
+        swap1 // [ptr+0x24, ptr+04]
+        calldataload // [data start position, length]
+        dup1  // [data start position, len, len]
+        iszero return_fn jumpi 
+        // [data start position, len]
+        dup1  // [data start position, len, len]
+        0x20  
+        mul // [data start position, len, len*0x20]
+        0x44 // // [data start position, len, len*0x20 + 0x44]
+        add // [data start position, len, len*0x20+0x44]
+        calldatasize eq store_fn jumpi
+
+        rev jump 
+
+    store_fn: 
+        0x00 mstore  // mem: [len]
+        0x20 mstore // mem: [len, starting position]
+        0x00 loop_fn jump //[0x00]
+        
+    loop_fn:
+        // initial stack: [index], output: [index+1]
+        dup1 // [i, i]
+        0x20  
+        mul // [i , i*0x20]
+        0x20 
+        mload 
+        add 
+        calldataload // [i, i th data]
+        0x40 
+        mload // temp sum
+        add // [i, i th data + temp sum]
+        0x40 mstore 
+        0x01 add // [i + 1]
+        dup1 // [i + 1, i + 1]
+        0x00 mload // [i+1, i+1, len]
+        gt loop_fn jumpi
+        return_fn jump 
+
+    return_fn:
+        0x20 0x40 return 
+        
+    rev: 
+        0x00 0x00 revert 
 }

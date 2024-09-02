@@ -10,8 +10,27 @@
  #define function value(uint256, uint256) payable returns()
  
  #define event Value(uint256 indexed, uint256)
+ 
 
+ #define macro value() = takes(2) returns (0) {
+    0x00 mstore 
+    __EVENT_HASH(Value)
+    0x20 0x00 log2
+ }
 
+// forge test -vvv --mc EmitterTest
  #define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload
+    0xe0 shr 
+    dup1 __FUNC_SIG(value)
+    eq v_fn jumpi 
+    0x00 0x00 revert 
+
+    v_fn:
+        0x04
+        calldataload 
+        0x24
+        calldataload 
+        value()
     
  }

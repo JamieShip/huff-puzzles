@@ -7,7 +7,15 @@
  *  The task is to write within the `MAIN` macro below, a function that returns the keccak256 of the calldata. Should handle zero calldata
  */
 
-
+// forge test -vvv --mc KeccakTest
  #define macro MAIN() = takes(0) returns(0) {
-    
+    calldatasize 
+    dup1 
+    0x00
+    0x00
+    calldatacopy
+    0x00 
+    sha3
+    0x00 mstore 
+    0x20 0x00 return 
  }

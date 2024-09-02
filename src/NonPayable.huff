@@ -8,6 +8,13 @@
  *  The task is to write within the `MAIN` macro below, huff code that reverts if ether is sent with the transaction.
  */
 
+// forge test -vvv --mc NonPayableTest
 #define macro MAIN() = takes(0) returns(0) {
+    callvalue 
+    0x00 lt rev jumpi // 00 < callvalue
 
+    0x00 0x00 return 
+
+    rev:
+        0x00 0x00 revert  
 }

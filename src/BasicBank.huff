@@ -11,6 +11,71 @@
 #define function balanceOf(address) payable returns(uint256)
 #define function withdraw(uint256) payable returns()
 
-#define macro MAIN() = takes(0) returns(0) {
+#define macro balanceOf() = takes (1) returns (1) {
+    0x00 mstore 
+    0x01 0x20 mstore 
+    0x40 0x00 sha3 
+    sload 
+}
 
+// forge test -vvv --mc BasicBankTest
+#define macro MAIN() = takes(0) returns(0) {
+    calldatasize 
+    iszero deposit_fn jumpi   
+    
+    0x00 calldataload
+    0xe0 shr 
+    dup1 __FUNC_SIG(balanceOf)
+    eq 
+    balance_of_fn jumpi
+
+    dup1 __FUNC_SIG(withdraw)
+    eq 
+    withdraw_fn jumpi
+
+    rev jump 
+
+    balance_of_fn:
+        0x04 calldataload
+        balanceOf()
+        0x00 
+        mstore 
+        0x20 0x00 return 
+
+    withdraw_fn:
+        caller balanceOf() 
+        dup1 
+        0x04 calldataload
+        dup1
+        swap3
+        lt rev jumpi
+        dup2 
+        swap1
+        sub  
+
+        caller 0x00 mstore 
+        0x01 0x20 mstore 
+        0x40 0x00 sha3   
+        sstore 
+
+        0x00 0x00 0x00 0x00 
+        swap4 
+        caller 
+        gas
+        call 
+
+        0x00 0x00 return 
+
+    deposit_fn:
+        callvalue 
+        caller balanceOf() 
+        add 
+        caller 0x00 mstore  
+        0x01 0x20 mstore  
+        0x40 0x00 sha3 
+        sstore 
+        0x00 0x00 return 
+
+    rev:
+        0x00 0x00 revert 
 }

@@ -13,6 +13,10 @@
 
 #define error OnlyHuff()
 
+
+// forge test -vvv --mc RevertCustomTest
 #define macro MAIN() = takes(0) returns(0) {
-    
+    __ERROR(OnlyHuff)
+    0x00 mstore 
+    0x04 0x00 revert  
 }
